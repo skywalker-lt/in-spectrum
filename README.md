@@ -19,4 +19,4 @@ npm start
 前往Safari或Google Chrome輸入`http://localhost:3000`
 
 目前由於經費限制，我們只能提供本地自定義安裝包，未來一個月內我們會開設伺服器及CDN，屆時任何人都可訪問in-spectrum.org即刻開啟遊戲！
-希望這個
+希望這個小小WebGame能成為讓我们理解鸿沟的小橋，謝謝大家的支持！
