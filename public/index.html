@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>極簡對話遊戲</title>
+  <style>
+    :root {
+      --bg: #f1f3f6;
+      --card-bg: #ffffff;
+      --primary: #1f4aa8;
+      --primary-dark: #153579;
+      --player-bubble: #cfe5ff;
+      --chen-bubble: #ffffff;
+      --system-bubble: #e7e9f2;
+      --narration-bubble: #f3f4f8;
+      --success-green: #d8f1df;
+      --success-green-border: #78c48b;
+      --error-red: #f7d9dd;
+      --error-red-border: #d26a76;
+      --border-radius-large: 24px;
+      --border-radius-medium: 18px;
+      --border-radius-small: 8px;
+      --shadow-soft: 0 12px 24px rgba(27, 44, 74, 0.08);
+      --shadow-inner: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+      font-family: "Helvetica Neue", "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: #1a1c23;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-start;
+    }
+
+    header.page-header {
+      width: 100%;
+      padding: 28px clamp(16px, 6vw, 64px) 10px;
+      text-align: center;
+    }
+
+    .page-title {
+      margin: 0;
+      font-size: clamp(2rem, 5vw, 2.8rem);
+      color: #102047;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    main.container {
+      width: 100%;
+      max-width: 1080px;
+      padding: 0 clamp(16px, 4vw, 40px) 32px;
+      margin: 0 auto;
+    }
+
+    .scene-card {
+      background: var(--card-bg);
+      border-radius: var(--border-radius-large);
+      box-shadow: var(--shadow-soft);
+      padding: clamp(20px, 3vw, 36px);
+      display: flex;
+      flex-direction: column;
+      gap: clamp(18px, 3vw, 28px);
+    }
+
+    .scene-banner {
+      display: grid;
+      gap: 24px;
+      align-items: center;
+    }
+
+    .scene-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center;
+      text-align: center;
+    }
+
+    .role-label {
+      font-size: 0.95rem;
+      color: #4a5675;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .scene-title {
+      margin: 0;
+      font-size: clamp(1.5rem, 2.8vw, 2.1rem);
+      color: #111521;
+      line-height: 1.35;
+    }
+
+    .scene-art {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 16px;
+    }
+
+    .scene-art figure {
+      background: #f7f9fd;
+      border-radius: var(--border-radius-large);
+      margin: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-soft);
+      border: 1px solid rgba(31, 74, 168, 0.08);
+    }
+
+    .scene-art img {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      object-fit: cover;
+      display: block;
+    }
+
+    .scene-art figcaption {
+      padding: 12px 16px;
+      font-size: 0.92rem;
+      color: #2e3a55;
+      background: linear-gradient(180deg, rgba(207, 229, 255, 0.45), rgba(207, 229, 255, 0));
+    }
+
+    .chat-module {
+      background: linear-gradient(180deg, rgba(248, 249, 252, 0.9), #f2f4f9);
+      border-radius: var(--border-radius-large);
+      padding: clamp(18px, 3vw, 28px);
+      box-shadow: var(--shadow-soft), var(--shadow-inner);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-height: 220px;
+    }
+
+    .chat-bubble {
+      max-width: min(86%, 560px);
+      border-radius: 22px;
+      padding: 14px 18px;
+      line-height: 1.55;
+      box-shadow: 0 6px 18px rgba(31, 74, 168, 0.08);
+      position: relative;
+      word-break: break-word;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease, border 0.2s ease;
+    }
+
+    .chat-bubble span.speaker {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .chat-bubble.player {
+      align-self: flex-end;
+      background: var(--player-bubble);
+      color: #0b2b5a;
+      border-bottom-right-radius: 6px;
+    }
+
+    .chat-bubble.player span.speaker {
+      color: #083064;
+    }
+
+    .chat-bubble.player.success-state {
+      background: var(--success-green);
+      border: 1px solid var(--success-green-border);
+      color: #275836;
+    }
+
+    .chat-bubble.player.success-state span.speaker {
+      color: #275836;
+    }
+
+    .chat-bubble.player.error-state {
+      background: var(--error-red);
+      border: 1px solid var(--error-red-border);
+      color: #6a242b;
+    }
+
+    .chat-bubble.player.error-state span.speaker {
+      color: #6a242b;
+    }
+
+    .chat-bubble.chen {
+      align-self: flex-start;
+      background: var(--chen-bubble);
+      color: #1d2233;
+      border-bottom-left-radius: 6px;
+    }
+
+    .chat-bubble.chen span.speaker {
+      color: #2a3455;
+    }
+
+    .chat-bubble.system,
+    .chat-bubble.narration {
+      align-self: center;
+      text-align: center;
+      background: var(--system-bubble);
+      color: #46506b;
+      border-radius: var(--border-radius-medium);
+      font-size: 0.95rem;
+      box-shadow: none;
+    }
+
+    .chat-bubble.narration {
+      background: var(--narration-bubble);
+      font-style: italic;
+      color: #3a445c;
+    }
+
+    .chat-bubble:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 28px rgba(31, 74, 168, 0.12);
+    }
+
+    .options-section {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .options-section h2 {
+      margin: 0;
+      font-size: 1.1rem;
+      color: #1f2a45;
+    }
+
+    .options-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .option-button {
+      all: unset;
+      background: linear-gradient(135deg, rgba(207, 229, 255, 0.75), rgba(207, 229, 255, 0.45));
+      border-radius: var(--border-radius-medium);
+      padding: 14px 18px;
+      cursor: pointer;
+      color: #124388;
+      font-weight: 600;
+      line-height: 1.55;
+      border: 1px solid rgba(31, 74, 168, 0.25);
+      box-shadow: 0 6px 14px rgba(31, 74, 168, 0.12);
+      transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, border 0.18s ease, color 0.18s ease;
+    }
+
+    .option-button:hover:not([disabled]) {
+      transform: translateY(-2px);
+      background: linear-gradient(135deg, rgba(207, 229, 255, 0.9), rgba(207, 229, 255, 0.6));
+      box-shadow: 0 12px 20px rgba(31, 74, 168, 0.18);
+    }
+
+    .option-button[disabled] {
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .option-button.option-success {
+      background: linear-gradient(135deg, rgba(203, 237, 214, 0.86), rgba(203, 237, 214, 0.7));
+      border: 1px solid var(--success-green-border);
+      color: #225c34;
+      box-shadow: 0 6px 16px rgba(53, 140, 83, 0.24);
+    }
+
+    .option-button.option-error {
+      background: linear-gradient(135deg, rgba(246, 202, 207, 0.86), rgba(246, 202, 207, 0.7));
+      border: 1px solid var(--error-red-border);
+      color: #7d2730;
+      box-shadow: 0 6px 16px rgba(173, 74, 84, 0.24);
+    }
+
+    .feedback-panel {
+      display: grid;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .system-note,
+    .reflection {
+      background: rgba(255, 255, 255, 0.8);
+      border-left: 4px solid rgba(31, 74, 168, 0.35);
+      padding: 12px 16px;
+      border-radius: var(--border-radius-small);
+      color: #2f3c5c;
+      line-height: 1.6;
+    }
+
+    .reflection {
+      background: rgba(244, 247, 255, 0.9);
+      border-left-color: rgba(31, 74, 168, 0.55);
+      font-style: italic;
+    }
+
+    .next-chapter-btn {
+      align-self: flex-end;
+      margin-top: 12px;
+      padding: 12px 20px;
+      border-radius: var(--border-radius-medium);
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      color: #ffffff;
+      background: linear-gradient(135deg, #1f4aa8, #16387e);
+      box-shadow: 0 10px 20px rgba(31, 74, 168, 0.25);
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .next-chapter-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 28px rgba(31, 74, 168, 0.3);
+    }
+
+    .status-line {
+      font-size: 0.9rem;
+      color: #5d6884;
+      text-align: right;
+    }
+
+    .footer-hint {
+      margin: clamp(24px, 5vw, 36px) auto 0;
+      max-width: 720px;
+      text-align: center;
+      font-size: 0.92rem;
+      color: #5c6785;
+      line-height: 1.7;
+    }
+
+    .footer-hint a {
+      color: #1f4aa8;
+      font-weight: 600;
+      text-decoration: none;
+      border-bottom: 1px solid rgba(31, 74, 168, 0.35);
+      padding-bottom: 2px;
+      transition: color 0.18s ease, border-color 0.18s ease;
+    }
+
+    .footer-hint a:hover {
+      color: #153579;
+      border-color: rgba(21, 53, 121, 0.55);
+    }
+
+    @media (max-width: 720px) {
+      header.page-header {
+        padding: 20px 16px 4px;
+      }
+
+      .page-title {
+        font-size: clamp(1.6rem, 6vw, 2.2rem);
+      }
+
+      main.container {
+        padding-top: 12px;
+        padding-bottom: 24px;
+      }
+
+      .scene-card {
+        padding: 20px 18px;
+        border-radius: 20px;
+        gap: 18px;
+      }
+
+      .scene-art {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .scene-art figcaption {
+        font-size: 0.85rem;
+      }
+
+      .chat-module {
+        border-radius: 20px;
+      }
+
+      .chat-bubble {
+        max-width: 100%;
+      }
+
+      .option-button {
+        padding: 14px 16px;
+      }
+
+      .footer-hint {
+        padding: 0 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="page-header">
+    <h1 class="page-title">光譜之間：做陳明的夥伴</h1>
+  </header>
+  <main class="container">
+    <section class="scene-card">
+      <div class="scene-banner">
+        <div class="scene-meta">
+          <p class="role-label" id="role-label">角色：</p>
+          <h1 class="scene-title" id="scene-title">場景載入中…</h1>
+        </div>
+        <div class="scene-art" id="scene-art">
+          <figure class="player-figure">
+            <img src="" alt="玩家角色插畫" id="player-illustration" />
+            <figcaption id="player-illustration-caption">玩家</figcaption>
+          </figure>
+          <figure class="chen-figure">
+            <img src="" alt="陳明插畫" id="chen-illustration" />
+            <figcaption id="chen-illustration-caption">陳明</figcaption>
+          </figure>
+        </div>
+      </div>
+
+      <section class="chat-module" id="chat-module"></section>
+
+      <section class="options-section">
+        <h2>選擇你的回應：</h2>
+        <div class="options-grid" id="options-grid"></div>
+      </section>
+
+      <div class="feedback-panel">
+        <div class="system-note" id="system-note" hidden></div>
+        <div class="reflection" id="reflection" hidden></div>
+      </div>
+
+      <div class="status-line" id="status-line"></div>
+      <button type="button" class="next-chapter-btn" id="next-chapter-btn" hidden>進入下一章</button>
+    </section>
+
+    <p class="footer-hint">
+      本遊戲開源，可在
+      <a href="https://github.com/skywalker-lt/in-spectrum.git" target="_blank" rel="noopener">GitHub</a>
+      下載。人物完全虛擬，圖像由AI生成，如有雷同純屬巧合。
+    </p>
+  </main>
+
+  <script>
+    const simplifiedToTraditionalMap = {
+      '万': '萬', '与': '與', '丑': '醜', '专': '專', '业': '業', '东': '東', '丝': '絲', '两': '兩',
+      '严': '嚴', '个': '個', '临': '臨', '丽': '麗', '举': '舉', '乡': '鄉', '书': '書', '买': '買',
+      '乱': '亂', '争': '爭', '于': '於', '亏': '虧', '云': '雲', '亚': '亞', '产': '產', '亲': '親',
+      '亿': '億', '仅': '僅', '从': '從', '仑': '侖', '仓': '倉', '仪': '儀', '们': '們', '优': '優',
+      '会': '會', '价': '價', '伦': '倫', '伟': '偉', '传': '傳', '伤': '傷', '伞': '傘', '伟': '偉',
+      '体': '體', '余': '餘', '佣': '傭', '侧': '側', '侪': '儕', '储': '儲', '儿': '兒', '党': '黨',
+      '冈': '岡', '贝': '貝', '见': '見', '观': '觀', '规': '規', '视': '視', '览': '覽', '觉': '覺',
+      '误': '誤', '诱': '誘', '语': '語', '说': '說', '读': '讀', '调': '調', '谈': '談', '请': '請',
+      '诸': '諸', '课': '課', '词': '詞', '贵': '貴', '贸': '貿', '责': '責', '费': '費', '资': '資',
+      '赞': '讚', '输': '輸', '赵': '趙', '赶': '趕', '赵': '趙', '进': '進', '这': '這', '连': '連',
+      '还': '還', '这': '這', '适': '適', '迟': '遲', '邮': '郵', '阵': '陣', '阴': '陰', '陈': '陳',
+      '陆': '陸', '阳': '陽', '阶': '階', '际': '際', '风': '風', '马': '馬', '驭': '馭', '馆': '館',
+      '饱': '飽', '饰': '飾', '驾': '駕', '驶': '駛', '验': '驗', '鱼': '魚', '鸡': '雞', '鹤': '鶴',
+      '麦': '麥', '黄': '黃', '齐': '齊', '龙': '龍', '龟': '龜', '岁': '歲', '动': '動', '务': '務',
+      '劝': '勸', '励': '勵', '势': '勢', '劲': '勁', '劳': '勞', '胜': '勝', '协': '協', '华': '華',
+      '单': '單', '卖': '賣', '卢': '盧', '问': '問', '启': '啟', '吴': '吳', '员': '員', '国': '國',
+      '图': '圖', '围': '圍', '圆': '圓', '场': '場', '坏': '壞', '够': '夠', '头': '頭', '夹': '夾',
+      '夺': '奪', '奥': '奧', '妇': '婦', '娇': '嬌', '学': '學', '宝': '寶', '实': '實', '审': '審',
+      '写': '寫', '宝': '寶', '尔': '爾', '尝': '嘗', '当': '當', '复': '復', '夸': '誇', '宁': '寧',
+      '宫': '宮', '库': '庫', '应': '應', '广': '廣', '庆': '慶', '床': '床', '庄': '莊', '庆': '慶',
+      '废': '廢', '开': '開', '异': '異', '弃': '棄', '举': '舉', '战': '戰', '护': '護', '报': '報',
+      '担': '擔', '据': '據', '挚': '摯', '捡': '撿', '损': '損', '换': '換', '揽': '攬', '敌': '敵',
+      '无': '無', '时': '時', '晋': '晉', '暂': '暫', '晓': '曉', '显': '顯', '欢': '歡', '权': '權',
+      '来': '來', '杨': '楊', '梦': '夢', '欢': '歡', '杂': '雜', '极': '極', '汉': '漢', '汤': '湯',
+      '济': '濟', '渐': '漸', '灭': '滅', '灵': '靈', '环': '環', '现': '現', '电': '電', '画': '畫',
+      '畅': '暢', '疗': '療', '盐': '鹽', '监': '監', '盖': '蓋', '盘': '盤', '种': '種', '积': '積',
+      '称': '稱', '稳': '穩', '窜': '竄', '简': '簡', '粮': '糧', '断': '斷', '缘': '緣', '编': '編',
+      '纬': '緯', '练': '練', '终': '終', '经': '經', '结': '結', '给': '給', '统': '統', '继': '繼',
+      '绩': '績', '绪': '緒', '线': '線', '练': '練', '组': '組', '绣': '繡', '绳': '繩', '维': '維',
+      '缩': '縮', '网': '網', '罗': '羅', '罚': '罰', '置': '置', '辑': '輯', '联': '聯', '听': '聽',
+      '舰': '艦', '艺': '藝', '节': '節', '装': '裝', '见': '見', '觉': '覺', '观': '觀', '记': '記',
+      '设': '設', '训': '訓', '议': '議', '讯': '訊', '访': '訪', '译': '譯', '证': '證', '识': '識',
+      '试': '試', '诗': '詩', '诚': '誠', '话': '話', '该': '該', '详': '詳', '语': '語', '误': '誤',
+      '说': '說', '读': '讀', '谁': '誰', '课': '課', '调': '調', '谈': '談', '请': '請', '诸': '諸',
+      '论': '論', '讽': '諷', '谷': '谷', '败': '敗', '账': '帳', '质': '質', '贪': '貪', '贫': '貧',
+      '贯': '貫', '购': '購', '贯': '貫', '费': '費', '贴': '貼', '贵': '貴', '贸': '貿', '赋': '賦',
+      '赏': '賞', '赣': '贛', '赵': '趙', '跃': '躍', '车': '車', '软': '軟', '较': '較', '载': '載',
+      '输': '輸', '辈': '輩', '辑': '輯', '边': '邊', '达': '達', '迁': '遷', '过': '過', '运': '運',
+      '这': '這', '选': '選', '适': '適', '钟': '鐘', '门': '門', '闲': '閒', '间': '間', '闹': '鬧',
+      '问': '問', '阅': '閱', '队': '隊', '阶': '階', '阴': '陰', '际': '際', '险': '險', '静': '靜',
+      '面': '面', '顶': '頂', '顾': '顧', '顿': '頓', '题': '題', '颜': '顏', '馆': '館', '马': '馬',
+      '验': '驗', '驳': '駁', '驻': '駐', '鱼': '魚', '鲁': '魯', '鲜': '鮮', '鸡': '雞', '鸣': '鳴',
+      '鹅': '鵝', '麦': '麥', '万': '萬', '齐': '齊', '齐': '齊', '龄': '齡', '龙': '龍', '龚': '龔',
+      '陈': '陳', '张': '張', '师': '師', '师傅': '師傅', '拥': '擁', '赢': '贏', '层': '層', '饰': '飾'
+    };
+
+    function toTraditional(input = '') {
+      return input.replace(/[\u4e00-\u9fff]/g, char => simplifiedToTraditionalMap[char] || char);
+    }
+
+    const sceneImageMap = {
+      chapter1: {
+        player: 'img_s1.jpg',
+        chen: 'img_s1-c.jpg',
+        playerCaption: '王老師',
+        chenCaption: '小小陳明'
+      },
+      chapter2: {
+        player: 'img_s2.jpg',
+        chen: 'img_s2-c.jpg',
+        playerCaption: '李經理',
+        chenCaption: '青年陳明'
+      },
+      chapter3: {
+        player: 'img_s3.jpg',
+        chen: 'img_s3-c.jpg',
+        playerCaption: '社工小張',
+        chenCaption: '老年陳明'
+      }
+    };
+
+    const chenDisplayNameMap = {
+      chapter1: '小小陳明',
+      chapter2: '青年陳明',
+      chapter3: '老年陳明'
+    };
+
+    const knownChenNames = new Set([
+      '陳明',
+      '陈明',
+      '小小陳明',
+      '小小陈明',
+      '青年陳明',
+      '青年陈明',
+      '老年陳明',
+      '老年陈明'
+    ]);
+
+    const roleLabelEl = document.getElementById('role-label');
+    const titleEl = document.getElementById('scene-title');
+    const chatModuleEl = document.getElementById('chat-module');
+    const optionsGridEl = document.getElementById('options-grid');
+    const systemNoteEl = document.getElementById('system-note');
+    const reflectionEl = document.getElementById('reflection');
+    const statusLineEl = document.getElementById('status-line');
+    const nextChapterBtn = document.getElementById('next-chapter-btn');
+    const playerImgEl = document.getElementById('player-illustration');
+    const chenImgEl = document.getElementById('chen-illustration');
+    const playerCaptionEl = document.getElementById('player-illustration-caption');
+    const chenCaptionEl = document.getElementById('chen-illustration-caption');
+    const sceneArtWrapper = document.getElementById('scene-art');
+
+    let currentChapterData = null;
+    let currentChapterId = 'chapter1';
+    let currentPlayerSpeakerName = '';
+    let conversationHistory = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadChapter(currentChapterId);
+      nextChapterBtn.addEventListener('click', handleNextChapter);
+    });
+
+    async function loadChapter(chapterId) {
+      try {
+        setLoadingState(true);
+        const response = await fetch(`/api/chapters/${chapterId}`);
+        if (!response.ok) {
+          throw new Error(`無法載入章節：${response.status}`);
+        }
+        const chapter = await response.json();
+        currentChapterData = chapter;
+        currentChapterId = chapter.id;
+        currentPlayerSpeakerName = derivePlayerSpeakerName(chapter);
+        updateSceneMeta(chapter);
+        updateSceneArt(chapter.id);
+        buildConversationFromIntro(chapter.intro);
+        renderChatModule();
+        renderOptions(chapter.options);
+        clearFeedback();
+        statusLineEl.textContent = '請選擇你的回應。';
+        nextChapterBtn.hidden = true;
+      } catch (error) {
+        console.error(error);
+        statusLineEl.textContent = '載入章節時出現錯誤，請重新整理重試。';
+      } finally {
+        setLoadingState(false);
+      }
+    }
+
+    function derivePlayerSpeakerName(chapter) {
+      const candidateLine = chapter.intro.find(line => line.includes('：') || line.includes(':'));
+      if (!candidateLine) return toTraditional(chapter.role);
+      const separatorIndex = Math.min(
+        ...[candidateLine.indexOf('：'), candidateLine.indexOf(':')].filter(idx => idx >= 0)
+      );
+      const name = separatorIndex >= 0
+        ? candidateLine.slice(0, separatorIndex).trim()
+        : chapter.role;
+      return toTraditional(name);
+    }
+
+    function updateSceneMeta(chapter) {
+      const roleText = toTraditional(chapter.role);
+      roleLabelEl.textContent = `角色：${roleText}`;
+      titleEl.textContent = toTraditional(chapter.title);
+    }
+
+    function updateSceneArt(chapterId) {
+      const images = sceneImageMap[chapterId] || null;
+      if (!images) {
+        sceneArtWrapper.hidden = true;
+        return;
+      }
+      sceneArtWrapper.hidden = false;
+
+      playerImgEl.src = images.player;
+      playerImgEl.alt = `玩家角色插畫 - ${toTraditional(images.playerCaption || '玩家')}`;
+      playerCaptionEl.textContent = toTraditional(images.playerCaption || '玩家');
+
+      const chenDisplayName = getChenDisplayName(chapterId);
+      chenImgEl.src = images.chen;
+      chenImgEl.alt = `陳明插畫 - ${chenDisplayName}`;
+      chenCaptionEl.textContent = toTraditional(images.chenCaption || chenDisplayName);
+    }
+
+    function buildConversationFromIntro(introLines = []) {
+      conversationHistory = introLines.map(parseDialogueLine).filter(Boolean);
+    }
+
+    function parseDialogueLine(rawLine) {
+      if (!rawLine || !rawLine.trim()) return null;
+      const traditionalLine = toTraditional(rawLine);
+      const trimmed = traditionalLine.trim();
+      const separatorMatch = trimmed.match(/[:：]/);
+      if (!separatorMatch) {
+        return {
+          speaker: '',
+          message: trimmed,
+          roleType: 'narration'
+        };
+      }
+      const separatorIndex = trimmed.indexOf(separatorMatch[0]);
+      const speakerRaw = trimmed.slice(0, separatorIndex).trim();
+      const message = trimmed.slice(separatorIndex + 1).trim();
+      const roleType = determineSpeakerRoleType(speakerRaw);
+      const speakerDisplay = roleType === 'chen'
+        ? getChenDisplayName(currentChapterId)
+        : toTraditional(speakerRaw);
+      return {
+        speaker: speakerDisplay,
+        message,
+        roleType
+      };
+    }
+
+    function determineSpeakerRoleType(speaker) {
+      const normalizedSpeaker = normalizeName(speaker);
+      if (isChenSpeakerName(normalizedSpeaker)) {
+        return 'chen';
+      }
+      if (normalizedSpeaker && normalizedSpeaker === normalizeName(currentPlayerSpeakerName)) {
+        return 'player';
+      }
+      return 'system';
+    }
+
+    function normalizeName(name = '') {
+      return name.replace(/\s/g, '');
+    }
+
+    function isChenSpeakerName(name) {
+      return knownChenNames.has(name);
+    }
+
+    function getChenDisplayName(chapterId = currentChapterId) {
+      return chenDisplayNameMap[chapterId] || '陳明';
+    }
+
+    function renderChatModule() {
+      chatModuleEl.innerHTML = '';
+      conversationHistory.forEach(entry => {
+        const bubble = document.createElement('div');
+        bubble.classList.add('chat-bubble', entry.roleType || 'system');
+
+        if (entry.roleType === 'player' && entry.outcome) {
+          bubble.classList.add(entry.outcome === 'success' ? 'success-state' : 'error-state');
+        }
+
+        if (entry.speaker) {
+          const speakerSpan = document.createElement('span');
+          speakerSpan.className = 'speaker';
+          speakerSpan.textContent = entry.speaker;
+          bubble.appendChild(speakerSpan);
+        }
+
+        const messageParagraph = document.createElement('p');
+        messageParagraph.textContent = entry.message;
+        bubble.appendChild(messageParagraph);
+
+        chatModuleEl.appendChild(bubble);
+      });
+
+      chatModuleEl.scrollTop = chatModuleEl.scrollHeight;
+    }
+
+    function renderOptions(options = []) {
+      optionsGridEl.innerHTML = '';
+      options.forEach(option => {
+        const button = document.createElement('button');
+        button.className = 'option-button';
+        button.type = 'button';
+        button.dataset.optionId = option.id;
+        button.textContent = toTraditional(option.text);
+        button.addEventListener('click', (event) => handleOptionSelection(option, event.currentTarget));
+        optionsGridEl.appendChild(button);
+      });
+    }
+
+    async function handleOptionSelection(option, buttonEl) {
+      if (buttonEl.dataset.locked === 'true') return;
+
+      setOptionsBusyState(true);
+
+      const displayText = toTraditional(option.text);
+      const playerEntryIndex = appendConversationEntry({
+        speaker: currentPlayerSpeakerName,
+        message: displayText,
+        roleType: 'player',
+        optionId: option.id
+      });
+
+      try {
+        statusLineEl.textContent = '正在解析互動結果…';
+        const response = await fetch(`/api/chapters/${currentChapterId}/choose`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ optionId: option.id })
+        });
+
+        if (!response.ok) {
+          throw new Error(`伺服器回應異常：${response.status}`);
+        }
+
+        const outcome = await response.json();
+        appendOutcomeToConversation(outcome.lines || []);
+        applyOutcomeFeedback(outcome);
+
+        const isSuccess = Boolean(outcome.success);
+        conversationHistory[playerEntryIndex].outcome = isSuccess ? 'success' : 'error';
+        renderChatModule();
+        markButtonState(buttonEl, isSuccess);
+        buttonEl.dataset.locked = 'true';
+
+        if (isSuccess) {
+          statusLineEl.textContent = '選擇成功！你可以閱讀反思或進入下一章。';
+          if (outcome.nextChapterId) {
+            nextChapterBtn.dataset.nextId = outcome.nextChapterId;
+            nextChapterBtn.hidden = false;
+          }
+        } else {
+          statusLineEl.textContent = '這個選擇似乎沒奏效，試試其他方式吧。';
+        }
+      } catch (error) {
+        console.error(error);
+        statusLineEl.textContent = '提交選擇時出現問題，請稍後重試。';
+        removeConversationEntryByOption(option.id);
+      } finally {
+        setOptionsBusyState(false);
+        buttonEl.disabled = true;
+      }
+    }
+
+    function appendOutcomeToConversation(lines) {
+      lines.forEach(line => {
+        const parsed = parseDialogueLine(line);
+        if (parsed) {
+          conversationHistory.push(parsed);
+        }
+      });
+      renderChatModule();
+    }
+
+    function applyOutcomeFeedback(outcome) {
+      if (outcome.systemNote) {
+        const noteText = toTraditional(outcome.systemNote);
+        systemNoteEl.textContent = noteText;
+        systemNoteEl.hidden = false;
+        conversationHistory.push({
+          speaker: '系統提示',
+          message: noteText,
+          roleType: 'system'
+        });
+      } else {
+        systemNoteEl.hidden = true;
+      }
+
+      if (Array.isArray(outcome.reflection) && outcome.reflection.length) {
+        const reflectionText = outcome.reflection.map(item => toTraditional(item)).join('\n');
+        reflectionEl.textContent = reflectionText;
+        reflectionEl.hidden = false;
+      } else {
+        reflectionEl.hidden = true;
+      }
+      renderChatModule();
+    }
+
+    function clearFeedback() {
+      systemNoteEl.hidden = true;
+      reflectionEl.hidden = true;
+    }
+
+    function appendConversationEntry(entry) {
+      const processedEntry = {
+        ...entry,
+        speaker: entry.speaker ? toTraditional(entry.speaker) : '',
+        message: toTraditional(entry.message || '')
+      };
+      conversationHistory.push(processedEntry);
+      renderChatModule();
+      return conversationHistory.length - 1;
+    }
+
+    function removeConversationEntryByOption(optionId) {
+      const index = conversationHistory.findIndex(entry => entry.optionId === optionId);
+      if (index >= 0) {
+        conversationHistory.splice(index, 1);
+        renderChatModule();
+      }
+    }
+
+    function setOptionsBusyState(isBusy) {
+      const buttons = optionsGridEl.querySelectorAll('button');
+      buttons.forEach(btn => {
+        if (isBusy) {
+          btn.disabled = true;
+        } else {
+          const locked = btn.dataset.locked === 'true';
+          btn.disabled = locked;
+        }
+      });
+    }
+
+    function markButtonState(buttonEl, isSuccess) {
+      buttonEl.classList.remove('option-success', 'option-error');
+      buttonEl.classList.add(isSuccess ? 'option-success' : 'option-error');
+    }
+
+    function setLoadingState(isLoading) {
+      statusLineEl.textContent = isLoading ? '場景載入中，請稍候…' : '';
+      setOptionsBusyState(isLoading);
+    }
+
+    function handleNextChapter() {
+      const nextId = nextChapterBtn.dataset.nextId;
+      if (!nextId) return;
+      nextChapterBtn.hidden = true;
+      loadChapter(nextId);
+    }
+  </script>
+</body>
+</html>
